@@ -1,0 +1,104 @@
+{
+  "title": "Google Maps Lead Extractor Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "keyword": {
+      "title": "Search Keyword",
+      "type": "string",
+      "description": "What type of business to search for (e.g., 'restaurants', 'dentists', 'coffee shops')",
+      "editor": "textfield",
+      "example": "coffee shops"
+    },
+    "location": {
+      "title": "Location",
+      "type": "string",
+      "description": "City, address, or ZIP code to search in (e.g., 'Brooklyn, NY', 'Austin, TX', '90210')",
+      "editor": "textfield",
+      "example": "Brooklyn, NY"
+    },
+    "maxResults": {
+      "title": "Maximum Results",
+      "type": "integer",
+      "description": "Maximum number of businesses to scrape (1-500)",
+      "editor": "number",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 500
+    },
+    "minRating": {
+      "title": "Minimum Rating",
+      "type": "number",
+      "description": "Only include businesses with this rating or higher (0 = no filter)",
+      "editor": "number",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 5
+    },
+    "minReviews": {
+      "title": "Minimum Reviews",
+      "type": "integer",
+      "description": "Only include businesses with at least this many reviews (0 = no filter)",
+      "editor": "number",
+      "default": 0,
+      "minimum": 0
+    },
+    "filterByPriceLevel": {
+      "title": "Filter by Price Level",
+      "type": "array",
+      "description": "Filter by price level symbols (leave empty for no filter). Select multiple to include all matching levels.",
+      "editor": "multiselect",
+      "items": {
+        "type": "string",
+        "enum": ["$", "$$", "$$$", "$$$$"]
+      },
+      "uniqueItems": true
+    },
+    "minPrice": {
+      "title": "Minimum Price",
+      "type": "integer",
+      "description": "Minimum price in dollars (e.g., 50 will filter out businesses cheaper than $50). 0 = no filter",
+      "editor": "number",
+      "default": 0,
+      "minimum": 0
+    },
+    "maxPrice": {
+      "title": "Maximum Price",
+      "type": "integer",
+      "description": "Maximum price in dollars (e.g., 100 will filter out businesses more expensive than $100). 0 = no filter",
+      "editor": "number",
+      "default": 0,
+      "minimum": 0
+    },
+    "findEmails": {
+      "title": "Find Email Addresses",
+      "type": "boolean",
+      "description": "Attempt to find email addresses from Google profiles and business websites (increases run time)",
+      "editor": "checkbox",
+      "default": false
+    },
+    "useProxy": {
+      "title": "Use Proxy",
+      "type": "boolean",
+      "description": "Use Apify proxy to avoid blocking (highly recommended for >50 results)",
+      "editor": "checkbox",
+      "default": true
+    },
+    "proxyType": {
+      "title": "Proxy Type",
+      "type": "string",
+      "description": "Type of proxy to use (GOOGLE_SERP is cost-effective, RESIDENTIAL is more reliable)",
+      "editor": "select",
+      "enum": ["GOOGLE_SERP", "RESIDENTIAL"],
+      "default": "GOOGLE_SERP"
+    },
+    "exportToCsv": {
+      "title": "Export to CSV",
+      "type": "boolean",
+      "description": "Export results as CSV file in addition to JSON (CSV file will be saved in key-value store as 'OUTPUT')",
+      "editor": "checkbox",
+      "default": false
+    }
+  },
+  "required": ["keyword", "location"]
+}

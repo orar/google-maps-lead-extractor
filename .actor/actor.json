@@ -1,0 +1,78 @@
+{
+  "actorSpecification": 1,
+  "name": "google-maps-lead-extractor",
+  "title": "Google Maps Lead Extractor with Email Finder",
+  "description": "Extract business listings from Google Maps with contact information including emails. Perfect for lead generation, sales prospecting, and market research.",
+  "version": "1.0.0",
+  "meta": {
+    "templateId": "js-crawlee"
+  },
+  "input": "./input_schema.json",
+  "dockerfile": "./Dockerfile",
+  "readme": "./README.md",
+  "categories": [
+    "lead-generation",
+    "scraper",
+    "business-intelligence"
+  ],
+  "storages": {
+    "dataset": {
+      "actorSpecification": 1,
+      "title": "Business Listings",
+      "views": {
+        "overview": {
+          "title": "Overview",
+          "transformation": {
+            "fields": [
+              "businessName",
+              "address",
+              "phone",
+              "website",
+              "email",
+              "rating",
+              "reviewCount",
+              "category"
+            ]
+          },
+          "display": {
+            "component": "table",
+            "properties": {
+              "businessName": {
+                "label": "Business Name",
+                "format": "text"
+              },
+              "address": {
+                "label": "Address",
+                "format": "text"
+              },
+              "phone": {
+                "label": "Phone",
+                "format": "text"
+              },
+              "website": {
+                "label": "Website",
+                "format": "link"
+              },
+              "email": {
+                "label": "Email",
+                "format": "text"
+              },
+              "rating": {
+                "label": "Rating",
+                "format": "number"
+              },
+              "reviewCount": {
+                "label": "Reviews",
+                "format": "number"
+              },
+              "category": {
+                "label": "Category",
+                "format": "text"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

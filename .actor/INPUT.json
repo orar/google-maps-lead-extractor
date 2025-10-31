@@ -1,0 +1,10 @@
+{
+  "keyword": "coffee shops",
+  "location": "Brooklyn, NY",
+  "maxResults": 10,
+  "minRating": 4.0,
+  "minReviews": 50,
+  "findEmails": false,
+  "useProxy": false,
+  "proxyType": "GOOGLE_SERP"
+}
