@@ -74,5 +74,16 @@
         }
       }
     }
+  },
+  "pricing": {
+    "type": "PER_DATASET_ITEM",
+    "pricePerDatasetItem": 0.007,
+    "currency": "USD",
+    "freeMonthlyDatasetItems": 100
+  },
+  "resourceConfiguration": {
+    "minimumMemoryMbytes": 512,
+    "recommendedMemoryMbytes": 1024,
+    "maximumMemoryMbytes": 4096
   }
 }
