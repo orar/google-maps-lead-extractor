@@ -41,12 +41,12 @@ export async function scrapeGoogleMaps(options) {
         // Navigate to Google Maps search
         console.log(`Navigating to: ${searchUrl}`);
         await page.goto(searchUrl, {
-            waitUntil: 'networkidle',
+            waitUntil: 'load',  // Changed from 'networkidle' (too strict, causes timeouts)
             timeout: TIMEOUTS.navigation,
         });
 
-        // Give the page extra time to render (especially with proxies)
-        await page.waitForTimeout(3000);
+        // Give the page extra time to render SPA content
+        await page.waitForTimeout(5000);
 
         // Dismiss consent dialog if present (do this FIRST before looking for results)
         await dismissConsent(page);
@@ -62,7 +62,7 @@ export async function scrapeGoogleMaps(options) {
             filterByPriceLevel,
             minPrice,
             maxPrice,
-        });
+        }, proxyConfiguration);
 
         console.log(`\n✓ Extracted ${businesses.length} businesses`);
 
@@ -233,11 +233,12 @@ async function dismissConsent(page) {
  * Extract business listings from the sidebar
  * Handles pagination by scrolling
  */
-async function extractBusinessListings(page, maxResults, filters) {
+async function extractBusinessListings(page, maxResults, filters, proxyConfiguration = null) {
     const businesses = [];
     const seenUrls = new Set();
     let previousCount = 0;
     let noNewResultsCount = 0;
+    let firstDebugDone = false;  // Only debug first failure
 
     while (businesses.length < maxResults) {
         // Get all visible business links
@@ -247,7 +248,7 @@ async function extractBusinessListings(page, maxResults, filters) {
         // Extract data from new businesses
         for (let i = previousCount; i < businessLinks.length && businesses.length < maxResults; i++) {
             try {
-                const businessData = await extractBusinessData(page, businessLinks[i], seenUrls);
+                const businessData = await extractBusinessData(page, businessLinks[i], seenUrls, !firstDebugDone, proxyConfiguration);
 
                 if (businessData) {
                     // Validate and clean data
@@ -260,6 +261,8 @@ async function extractBusinessListings(page, maxResults, filters) {
                     } else {
                         console.log(`  ✗ Filtered out: ${businessData.businessName}`);
                     }
+                } else if (!firstDebugDone) {
+                    firstDebugDone = true;  // Mark that we've done debug for first failure
                 }
             } catch (error) {
                 console.error(`  Error extracting business ${i + 1}:`, error.message);
@@ -426,7 +429,7 @@ async function extractPriceInfo(page) {
 /**
  * Extract data from a single business card
  */
-async function extractBusinessData(page, businessLink, seenUrls) {
+async function extractBusinessData(page, businessLink, seenUrls, enableDebug = false, proxyConfiguration = null) {
     try {
         // Get the business URL
         const businessUrl = await businessLink.getAttribute('href');
@@ -438,12 +441,96 @@ async function extractBusinessData(page, businessLink, seenUrls) {
         // Click on the business to open details panel
         await businessLink.scrollIntoViewIfNeeded();
         await businessLink.click();
-        await page.waitForTimeout(TIMEOUTS.businessDetails);
 
-        // Extract business name
-        const businessName = await extractText(page, [SELECTORS.businessName, SELECTORS.businessNameAlt]);
+        // Wait longer with proxies (they're slower)
+        const detailsWait = proxyConfiguration ? 5000 : TIMEOUTS.businessDetails;
+        await page.waitForTimeout(detailsWait);
+
+        // Extract business name with multiple fallback strategies
+        let businessName = null;
+
+        // Strategy 1: Try known selectors
+        businessName = await extractText(page, [
+            SELECTORS.businessName,
+            SELECTORS.businessNameAlt,
+            'h1',  // Fallback to any h1
+            'h1[class]',  // Any h1 with a class
+        ]);
+
+        // Strategy 2: If still no name, try to find it in the details panel
         if (!businessName) {
-            console.log('  ✗ Could not extract business name');
+            businessName = await page.evaluate(() => {
+                // Look for h1 elements in the main content area
+                const h1Elements = document.querySelectorAll('h1');
+                for (const h1 of h1Elements) {
+                    const text = h1.textContent?.trim();
+                    if (text && text.length > 0 && text.length < 200) {
+                        return text;
+                    }
+                }
+
+                // Look for elements with specific aria-labels
+                const labeledElements = document.querySelectorAll('[aria-label]');
+                for (const el of labeledElements) {
+                    const label = el.getAttribute('aria-label');
+                    if (label && el.tagName === 'H1') {
+                        return label;
+                    }
+                }
+
+                return null;
+            });
+        }
+
+        if (!businessName) {
+            // Debug: capture what's actually on the page (only for first failure)
+            if (enableDebug) {
+                console.log('\n⚠️  DEBUG: Could not extract business name. Analyzing page structure...\n');
+
+                const debugInfo = await page.evaluate(() => {
+                    // Get all h1 elements and their structure
+                    const h1s = Array.from(document.querySelectorAll('h1')).map(h1 => ({
+                        text: h1.textContent?.substring(0, 100),
+                        classes: h1.className,
+                        html: h1.outerHTML.substring(0, 200),
+                    }));
+
+                    // Get all elements with large text (potential business names)
+                    const largeText = Array.from(document.querySelectorAll('*'))
+                        .filter(el => {
+                            const style = window.getComputedStyle(el);
+                            const fontSize = parseFloat(style.fontSize);
+                            return fontSize > 20 && el.textContent && el.textContent.trim().length < 100;
+                        })
+                        .slice(0, 5)
+                        .map(el => ({
+                            tag: el.tagName,
+                            text: el.textContent?.trim(),
+                            classes: el.className,
+                        }));
+
+                    // Get the main container info
+                    const main = document.querySelector('[role="main"]');
+                    const mainText = main?.textContent?.substring(0, 500);
+
+                    return { h1s, largeText, mainText };
+                });
+
+                console.log('📊 H1 elements found:', JSON.stringify(debugInfo.h1s, null, 2));
+                console.log('📊 Large text elements (potential names):', JSON.stringify(debugInfo.largeText, null, 2));
+                console.log('📊 Main container text:', debugInfo.mainText?.substring(0, 200));
+
+                // Take screenshot for visual debugging
+                try {
+                    await page.screenshot({ path: 'debug-business-details.png', fullPage: true });
+                    console.log('📸 Screenshot saved: debug-business-details.png\n');
+                } catch (e) {
+                    console.log('⚠️  Could not save screenshot');
+                }
+            } else {
+                console.log('  ✗ Could not extract business name');
+            }
+
             return null;
         }
 
