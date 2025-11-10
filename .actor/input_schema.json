@@ -46,8 +46,8 @@
     "filterByPriceLevel": {
       "title": "Filter by Price Level",
       "type": "array",
-      "description": "Filter by price level symbols (leave empty for no filter). Select multiple to include all matching levels.",
-      "editor": "multiselect",
+      "description": "Filter by price level symbols (leave empty for no filter). Select multiple to include all matching levels. Note: This is not strict.",
+      "editor": "select",
       "items": {
         "type": "string",
         "enum": ["$", "$$", "$$$", "$$$$"]
