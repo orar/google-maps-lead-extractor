@@ -254,6 +254,11 @@ async function extractBusinessListings(page, maxResults, filters, proxyConfigura
                     // Validate and clean data
                     const validatedData = validateBusinessData(businessData);
 
+                    // Skip if validation returned null (invalid business name)
+                    if (!validatedData) {
+                        continue;
+                    }
+
                     // Check if meets filter criteria
                     if (meetsFilterCriteria(validatedData, filters)) {
                         businesses.push(validatedData);

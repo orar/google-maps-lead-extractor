@@ -239,9 +239,48 @@ export function validateBusinessHours(hours) {
 }
 
 /**
+ * Check if business name is valid (not a localized "Results" placeholder)
+ * These appear when proxies route through wrong countries
+ */
+export function isValidBusinessName(name) {
+    if (!name || typeof name !== 'string') return false;
+
+    const invalidNames = [
+        'resultados',     // Spanish
+        'résultats',      // French
+        'resultats',      // French (without accent)
+        'results',        // English generic
+        'ergebnisse',     // German
+        'risultati',      // Italian
+        'resultaten',     // Dutch
+        'результаты',     // Russian
+    ];
+
+    const lowerName = name.toLowerCase().trim();
+
+    // Check if name is in invalid list
+    if (invalidNames.includes(lowerName)) {
+        return false;
+    }
+
+    // Also check if name is too short (likely incomplete/error)
+    if (lowerName.length < 2) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Validate and clean complete business data
  */
 export function validateBusinessData(rawData) {
+    // Skip businesses with invalid names (wrong location results)
+    if (!isValidBusinessName(rawData.businessName)) {
+        console.log(`  ⚠️  Skipping invalid business name: "${rawData.businessName}" (likely wrong proxy location)`);
+        return null;
+    }
+
     const { latitude, longitude } = parseCoordinates(rawData.googleMapsUrl);
     const addressComponents = parseAddress(rawData.address);
 

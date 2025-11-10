@@ -67,6 +67,7 @@ try {
     const proxyConfiguration = useProxy
         ? await Actor.createProxyConfiguration({
               groups: [proxyType],
+              countryCode: 'US',  // Force US proxies to get correct location results
           })
         : undefined;
 
