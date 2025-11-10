@@ -23,6 +23,7 @@ export async function scrapeGoogleMaps(options) {
         minPrice = 0,
         maxPrice = 0,
         findEmails = false,
+        extractBusinessHours = false,
         proxyConfiguration = null,
     } = options;
 
@@ -62,7 +63,7 @@ export async function scrapeGoogleMaps(options) {
             filterByPriceLevel,
             minPrice,
             maxPrice,
-        }, proxyConfiguration);
+        }, proxyConfiguration, extractBusinessHours);
 
         console.log(`\n✓ Extracted ${businesses.length} businesses`);
 
@@ -233,7 +234,7 @@ async function dismissConsent(page) {
  * Extract business listings from the sidebar
  * Handles pagination by scrolling
  */
-async function extractBusinessListings(page, maxResults, filters, proxyConfiguration = null) {
+async function extractBusinessListings(page, maxResults, filters, proxyConfiguration = null, extractBusinessHours = false) {
     const businesses = [];
     const seenUrls = new Set();
     let previousCount = 0;
@@ -248,7 +249,7 @@ async function extractBusinessListings(page, maxResults, filters, proxyConfigura
         // Extract data from new businesses
         for (let i = previousCount; i < businessLinks.length && businesses.length < maxResults; i++) {
             try {
-                const businessData = await extractBusinessData(page, businessLinks[i], seenUrls, !firstDebugDone, proxyConfiguration);
+                const businessData = await extractBusinessData(page, businessLinks[i], seenUrls, !firstDebugDone, proxyConfiguration, extractBusinessHours);
 
                 if (businessData) {
                     // Validate and clean data
@@ -304,8 +305,9 @@ async function extractBusinessListings(page, maxResults, filters, proxyConfigura
 /**
  * Extract business hours from Google Maps
  * Returns structured hours data or null if not available
+ * Optimized with reduced timeout for better performance
  */
-async function extractBusinessHours(page) {
+async function extractHoursData(page) {
     try {
         // Look for hours button - try multiple approaches
         let hoursButton = null;
@@ -326,7 +328,6 @@ async function extractBusinessHours(page) {
                         (text.toLowerCase().includes('close') && text.match(/\d+\s*(am|pm)/i))
                     )) {
                         hoursButton = btn;
-                        console.log(`  Found hours button: "${text.substring(0, 50)}"`);
                         break;
                     }
                 } catch (e) {
@@ -336,14 +337,12 @@ async function extractBusinessHours(page) {
         }
 
         if (!hoursButton) {
-            console.log('  ℹ No hours button found');
             return null;
         }
 
-        // Click to expand hours
-        console.log('  Clicking hours button...');
-        await hoursButton.click();
-        await page.waitForTimeout(2500);
+        // Click to expand hours with reduced timeout (5s instead of 30s)
+        await hoursButton.click({ timeout: 5000 });
+        await page.waitForTimeout(1500);
 
         // Extract hours from aria-labels
         // Google Maps uses buttons with aria-labels like "Monday, 9:00 AM to 5:00 PM, Copy open hours"
@@ -434,7 +433,7 @@ async function extractPriceInfo(page) {
 /**
  * Extract data from a single business card
  */
-async function extractBusinessData(page, businessLink, seenUrls, enableDebug = false, proxyConfiguration = null) {
+async function extractBusinessData(page, businessLink, seenUrls, enableDebug = false, proxyConfiguration = null, extractBusinessHours = false) {
     try {
         // Get the business URL
         const businessUrl = await businessLink.getAttribute('href');
@@ -568,8 +567,11 @@ async function extractBusinessData(page, businessLink, seenUrls, enableDebug = f
         // Extract price level (e.g., $, $$, $$$, $$$$) and price range (e.g., "$50–100", "$100+")
         const { priceLevel, priceRange } = await extractPriceInfo(page);
 
-        // Extract business hours
-        const businessHours = await extractBusinessHours(page);
+        // Extract business hours (only if enabled)
+        let businessHours = null;
+        if (extractBusinessHours) {
+            businessHours = await extractHoursData(page);
+        }
 
         // Check for email in Google profile (rare)
         const profileEmail = await findEmailInGoogleProfile(page);

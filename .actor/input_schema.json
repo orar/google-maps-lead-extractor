@@ -77,6 +77,13 @@
       "editor": "checkbox",
       "default": false
     },
+    "extractBusinessHours": {
+      "title": "Extract Business Hours",
+      "type": "boolean",
+      "description": "Extract operating hours for each business (may add 5-10 seconds per business)",
+      "editor": "checkbox",
+      "default": false
+    },
     "useProxy": {
       "title": "Use Proxy",
       "type": "boolean",

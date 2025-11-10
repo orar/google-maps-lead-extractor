@@ -24,6 +24,7 @@ try {
         minPrice = 0,
         maxPrice = 0,
         findEmails = false,
+        extractBusinessHours = false,
         useProxy = true,
         proxyType = 'GOOGLE_SERP',
         exportToCsv = false,
@@ -53,6 +54,7 @@ try {
         console.log(`Price range: ${priceRangeStr}`);
     }
     console.log(`Find emails: ${findEmails ? 'Yes' : 'No'}`);
+    console.log(`Extract hours: ${extractBusinessHours ? 'Yes' : 'No'}`);
     console.log(`Use proxy: ${useProxy ? 'Yes' : 'No'}`);
     if (useProxy) {
         console.log(`Proxy type: ${proxyType}`);
@@ -81,6 +83,7 @@ try {
         minPrice,
         maxPrice,
         findEmails,
+        extractBusinessHours,
         proxyConfiguration,
     });
 
