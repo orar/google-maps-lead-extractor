@@ -24,6 +24,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.logs/
 *.swp
 *.swo
 
