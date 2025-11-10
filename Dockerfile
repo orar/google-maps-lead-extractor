@@ -11,10 +11,11 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 USER myuser
 
 # Copy package files first for better caching
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml* ./
 
-# Install dependencies with pnpm
-RUN pnpm install --frozen-lockfile
+# Install dependencies with pnpm (use frozen-lockfile if lock file exists)
+RUN pnpm install
 
 # Copy the rest of the application
 COPY . ./
