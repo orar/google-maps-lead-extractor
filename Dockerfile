@@ -20,8 +20,5 @@ RUN pnpm install
 # Copy the rest of the application
 COPY . ./
 
-# Install Playwright browsers (may already be installed in base image)
-RUN npx playwright install chromium --with-deps
-
 # Run the Actor
 CMD pnpm start
