@@ -89,8 +89,8 @@ export const ARIA_PATTERNS = {
  * Timeout constants (in milliseconds)
  */
 export const TIMEOUTS = {
-    navigation: 30000,      // 30 seconds for page load
-    sidebarLoad: 5000,      // 5 seconds for sidebar to appear
+    navigation: 60000,       // 60 seconds for page load (proxies can be slow)
+    sidebarLoad: 15000,      // 15 seconds for sidebar to appear (increased for proxies)
     businessDetails: 3000,   // 3 seconds for details panel
     scrollWait: 2000,        // 2 seconds after scroll
     humanDelay: 1500,        // Average human interaction delay

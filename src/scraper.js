@@ -41,15 +41,18 @@ export async function scrapeGoogleMaps(options) {
         // Navigate to Google Maps search
         console.log(`Navigating to: ${searchUrl}`);
         await page.goto(searchUrl, {
-            waitUntil: 'domcontentloaded',
+            waitUntil: 'networkidle',
             timeout: TIMEOUTS.navigation,
         });
 
+        // Give the page extra time to render (especially with proxies)
+        await page.waitForTimeout(3000);
+
+        // Dismiss consent dialog if present (do this FIRST before looking for results)
+        await dismissConsent(page);
+
         // Wait for search results to load
         await waitForSearchResults(page);
-
-        // Dismiss consent dialog if present
-        await dismissConsent(page);
 
         // Extract business listings from sidebar
         console.log(`\nExtracting business listings (max: ${maxResults})...`);
@@ -136,11 +139,56 @@ async function setupPage(page) {
  */
 async function waitForSearchResults(page) {
     try {
-        await page.waitForSelector(SELECTORS.feedContainer, {
-            timeout: TIMEOUTS.sidebarLoad,
-        });
-        console.log('✓ Search results loaded');
+        // Try multiple selectors in case Google Maps structure changed
+        const selectors = [
+            SELECTORS.feedContainer,           // div[role="feed"]
+            SELECTORS.searchResultsPanel,      // div[role="main"]
+            'div.m6QErb',                      // Common sidebar class
+            '[role="region"]',                 // Alternative region selector
+        ];
+
+        let found = false;
+        for (const selector of selectors) {
+            try {
+                await page.waitForSelector(selector, { timeout: 3000 });
+                console.log(`✓ Search results loaded (selector: ${selector})`);
+                found = true;
+                break;
+            } catch (e) {
+                // Try next selector
+            }
+        }
+
+        if (!found) {
+            // Debug: capture page state
+            console.log('\n⚠️  DEBUG: Search results not found. Capturing page state...');
+
+            // Get page title
+            const title = await page.title();
+            console.log(`Page title: ${title}`);
+
+            // Get page URL (might have redirected)
+            const currentUrl = page.url();
+            console.log(`Current URL: ${currentUrl}`);
+
+            // Check for common blocking indicators
+            const bodyText = await page.evaluate(() => document.body.innerText.substring(0, 500));
+            console.log(`Body text sample: ${bodyText}`);
+
+            // Take screenshot for debugging
+            try {
+                await page.screenshot({ path: 'debug-failed-search.png', fullPage: true });
+                console.log('Screenshot saved to: debug-failed-search.png');
+            } catch (screenshotError) {
+                // Screenshot might fail in some environments
+            }
+
+            throw new Error('Search results did not load. The location or keyword might be invalid.');
+        }
     } catch (error) {
+        if (error.message.includes('Search results did not load')) {
+            throw error;
+        }
         throw new Error('Search results did not load. The location or keyword might be invalid.');
     }
 }
@@ -150,14 +198,34 @@ async function waitForSearchResults(page) {
  */
 async function dismissConsent(page) {
     try {
-        const consentButton = await page.$(SELECTORS.consentButton);
-        if (consentButton) {
-            await consentButton.click();
-            await page.waitForTimeout(1000);
-            console.log('✓ Dismissed consent dialog');
+        // Try multiple consent button selectors
+        const consentSelectors = [
+            'button[aria-label*="Accept"]',
+            'button[aria-label*="Reject"]',
+            'button:has-text("Accept all")',
+            'button:has-text("Reject all")',
+            'button:has-text("I agree")',
+            'form[action*="consent"] button',
+        ];
+
+        for (const selector of consentSelectors) {
+            try {
+                const button = await page.$(selector);
+                if (button && await button.isVisible()) {
+                    await button.click();
+                    await page.waitForTimeout(2000);
+                    console.log(`✓ Dismissed consent dialog (${selector})`);
+                    return;
+                }
+            } catch (e) {
+                // Try next selector
+            }
         }
+
+        console.log('No consent dialog found (or already dismissed)');
     } catch (error) {
         // Consent dialog not present or already dismissed
+        console.log('No consent dialog needed');
     }
 }
 
