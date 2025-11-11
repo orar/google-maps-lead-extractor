@@ -446,9 +446,52 @@ async function extractBusinessData(page, businessLink, seenUrls, enableDebug = f
         await businessLink.scrollIntoViewIfNeeded();
         await businessLink.click();
 
-        // Wait longer with proxies (they're slower)
-        const detailsWait = proxyConfiguration ? 5000 : TIMEOUTS.businessDetails;
-        await page.waitForTimeout(detailsWait);
+        // Wait for the details panel to actually appear (not just timeout)
+        // The details panel is a 'main' element (not in sidebar) that appears with the business info
+        // We need to wait for it to avoid picking up the "Results" h1 from the sidebar
+        try {
+            // Wait longer with proxies (they're slower)
+            const detailsWait = proxyConfiguration ? 10000 : 5000;
+
+            // Wait for an h1 to appear that's NOT in the results feed
+            // The business name h1 should be in a separate main panel
+            await page.waitForFunction(
+                () => {
+                    // Find all main elements
+                    const mainElements = Array.from(document.querySelectorAll('main'));
+
+                    // Look for a main element that's not the results feed
+                    for (const main of mainElements) {
+                        const ariaLabel = main.getAttribute('aria-label');
+                        // Skip the "Results for" sidebar
+                        if (ariaLabel && ariaLabel.includes('Results for')) {
+                            continue;
+                        }
+
+                        // Check if this main has an h1 with actual content
+                        const h1 = main.querySelector('h1');
+                        if (h1 && h1.textContent && h1.textContent.trim().length > 0) {
+                            const text = h1.textContent.trim();
+                            // Make sure it's not "Results" or other generic headings
+                            if (text !== 'Results' &&
+                                !text.startsWith('Results for') &&
+                                text.length < 200) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                },
+                { timeout: detailsWait }
+            );
+
+            // Additional wait for all content to fully render
+            await page.waitForTimeout(1500);
+        } catch (error) {
+            console.log('  ⚠️  Details panel took longer than expected to load, continuing anyway...');
+            // Fallback to fixed timeout
+            await page.waitForTimeout(proxyConfiguration ? 5000 : 3000);
+        }
 
         // Extract business name with multiple fallback strategies
         let businessName = null;
@@ -461,20 +504,36 @@ async function extractBusinessData(page, businessLink, seenUrls, enableDebug = f
             'h1[class]',  // Any h1 with a class
         ]);
 
-        // Strategy 2: If still no name, try to find it in the details panel
+        // Strategy 2: If still no name, try to find it in the details panel ONLY (not the sidebar)
         if (!businessName) {
             businessName = await page.evaluate(() => {
-                // Look for h1 elements in the main content area
-                const h1Elements = document.querySelectorAll('h1');
+                // Find the details panel (main element that's NOT the results feed)
+                const mainElements = Array.from(document.querySelectorAll('div[role="main"]'));
+                const detailsPanel = mainElements.find(main => {
+                    const label = main.getAttribute('aria-label');
+                    return !label || !label.includes('Results for');
+                });
+
+                if (!detailsPanel) {
+                    return null;
+                }
+
+                // Look for h1 elements ONLY within the details panel
+                const h1Elements = detailsPanel.querySelectorAll('h1');
                 for (const h1 of h1Elements) {
                     const text = h1.textContent?.trim();
-                    if (text && text.length > 0 && text.length < 200) {
+                    // Filter out generic headings like "Results", "Reviews", etc.
+                    if (text &&
+                        text.length > 0 &&
+                        text.length < 200 &&
+                        text !== 'Results' &&
+                        !text.startsWith('Results for')) {
                         return text;
                     }
                 }
 
-                // Look for elements with specific aria-labels
-                const labeledElements = document.querySelectorAll('[aria-label]');
+                // Look for elements with specific aria-labels within details panel
+                const labeledElements = detailsPanel.querySelectorAll('[aria-label]');
                 for (const el of labeledElements) {
                     const label = el.getAttribute('aria-label');
                     if (label && el.tagName === 'H1') {
