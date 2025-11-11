@@ -26,7 +26,9 @@ try {
         findEmails = false,
         extractBusinessHours = false,
         useProxy = true,
-        proxyType = 'DATACENTER',
+        proxyType = 'AUTO',
+        customProxyUrls = [],
+        fastMode = false,
         exportToCsv = false,
     } = input;
 
@@ -68,15 +70,37 @@ try {
     // Configure proxy if enabled
     let proxyConfiguration = undefined;
     if (useProxy) {
-        const proxyOptions = { groups: [proxyType] };
+        if (proxyType === 'CUSTOM') {
+            // Custom proxy URLs provided by user
+            if (!customProxyUrls || customProxyUrls.length === 0) {
+                throw new Error('Custom proxy URLs are required when proxyType is CUSTOM');
+            }
 
-        // Only add countryCode for RESIDENTIAL proxies
-        // GOOGLE_SERP proxies don't support country selection
-        if (proxyType === 'RESIDENTIAL') {
-            proxyOptions.countryCode = 'US';
+            // Create a simple proxy configuration that rotates through custom URLs
+            let proxyIndex = 0;
+            proxyConfiguration = {
+                newUrl: () => {
+                    const url = customProxyUrls[proxyIndex % customProxyUrls.length];
+                    proxyIndex++;
+                    return url;
+                }
+            };
+
+            console.log(`Using ${customProxyUrls.length} custom proxy URL(s)`);
+        } else {
+            // Apify proxies (AUTO or RESIDENTIAL)
+            const proxyOptions = {};
+
+            // AUTO: Use default datacenter proxies (no groups parameter)
+            // RESIDENTIAL: Specify group and add country code
+            if (proxyType === 'RESIDENTIAL') {
+                proxyOptions.groups = ['RESIDENTIAL'];
+                proxyOptions.countryCode = 'US';
+            }
+            // For AUTO, we don't specify groups (defaults to datacenter)
+
+            proxyConfiguration = await Actor.createProxyConfiguration(proxyOptions);
         }
-
-        proxyConfiguration = await Actor.createProxyConfiguration(proxyOptions);
     }
 
     // Run the scraper
@@ -91,6 +115,7 @@ try {
         findEmails,
         extractBusinessHours,
         proxyConfiguration,
+        fastMode,
     });
 
     // Push results to Apify dataset

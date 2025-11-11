@@ -87,17 +87,34 @@
     "useProxy": {
       "title": "Use Proxy",
       "type": "boolean",
-      "description": "Use Apify proxy to avoid blocking (highly recommended for >50 results)",
+      "description": "Use proxy to avoid blocking (highly recommended for >50 results)",
       "editor": "checkbox",
       "default": true
     },
     "proxyType": {
       "title": "Proxy Type",
       "type": "string",
-      "description": "DATACENTER (default): Fast, cheap, works for most cases. RESIDENTIAL: More expensive but better for avoiding blocks. Note: RESIDENTIAL may have geo-location issues even with US searches.",
+      "description": "AUTO: Apify datacenter proxies (fast, cheap). RESIDENTIAL: Apify residential proxies (expensive, may have geo issues). CUSTOM: Your own proxy URLs (fastest, you control costs).",
       "editor": "select",
-      "enum": ["DATACENTER", "RESIDENTIAL"],
-      "default": "DATACENTER"
+      "enum": ["AUTO", "RESIDENTIAL", "CUSTOM"],
+      "default": "AUTO"
+    },
+    "customProxyUrls": {
+      "title": "Custom Proxy URLs",
+      "type": "array",
+      "description": "Your own proxy URLs (only used when Proxy Type = CUSTOM). Format: http://username:password@proxy-host:port or socks5://proxy-host:port. Add multiple for rotation.",
+      "editor": "stringList",
+      "items": {
+        "type": "string"
+      },
+      "prefill": ["http://username:password@proxy.example.com:8080"]
+    },
+    "fastMode": {
+      "title": "Fast Mode",
+      "type": "boolean",
+      "description": "Reduce delays between actions for faster scraping (use with good proxies). Normal: ~6s/business, Fast: ~2s/business. May increase blocking risk.",
+      "editor": "checkbox",
+      "default": false
     },
     "exportToCsv": {
       "title": "Export to CSV",

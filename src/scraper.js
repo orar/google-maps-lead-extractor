@@ -25,6 +25,7 @@ export async function scrapeGoogleMaps(options) {
         findEmails = false,
         extractBusinessHours = false,
         proxyConfiguration = null,
+        fastMode = false,
     } = options;
 
     let browser = null;
@@ -57,13 +58,16 @@ export async function scrapeGoogleMaps(options) {
 
         // Extract business listings from sidebar
         console.log(`\nExtracting business listings (max: ${maxResults})...`);
+        if (fastMode) {
+            console.log('⚡ Fast mode enabled - using reduced delays');
+        }
         const businesses = await extractBusinessListings(page, maxResults, {
             minRating,
             minReviews,
             filterByPriceLevel,
             minPrice,
             maxPrice,
-        }, proxyConfiguration, extractBusinessHours);
+        }, proxyConfiguration, extractBusinessHours, fastMode);
 
         console.log(`\n✓ Extracted ${businesses.length} businesses`);
 
@@ -234,7 +238,7 @@ async function dismissConsent(page) {
  * Extract business listings from the sidebar
  * Handles pagination by scrolling
  */
-async function extractBusinessListings(page, maxResults, filters, proxyConfiguration = null, extractBusinessHours = false) {
+async function extractBusinessListings(page, maxResults, filters, proxyConfiguration = null, extractBusinessHours = false, fastMode = false) {
     const businesses = [];
     const seenUrls = new Set();
     let previousCount = 0;
@@ -249,7 +253,7 @@ async function extractBusinessListings(page, maxResults, filters, proxyConfigura
         // Extract data from new businesses
         for (let i = previousCount; i < businessLinks.length && businesses.length < maxResults; i++) {
             try {
-                const businessData = await extractBusinessData(page, businessLinks[i], seenUrls, !firstDebugDone, proxyConfiguration, extractBusinessHours);
+                const businessData = await extractBusinessData(page, businessLinks[i], seenUrls, !firstDebugDone, proxyConfiguration, extractBusinessHours, fastMode);
 
                 if (businessData) {
                     // Validate and clean data
@@ -295,8 +299,14 @@ async function extractBusinessListings(page, maxResults, filters, proxyConfigura
 
         // Scroll to load more results
         await scrollSidebar(page);
-        await randomDelay();
-        await page.waitForTimeout(TIMEOUTS.scrollWait);
+
+        // Use reduced delays in fast mode
+        if (fastMode) {
+            await page.waitForTimeout(500); // 0.5s instead of 3.5s
+        } else {
+            await randomDelay();
+            await page.waitForTimeout(TIMEOUTS.scrollWait);
+        }
     }
 
     return businesses;
@@ -433,7 +443,7 @@ async function extractPriceInfo(page) {
 /**
  * Extract data from a single business card
  */
-async function extractBusinessData(page, businessLink, seenUrls, enableDebug = false, proxyConfiguration = null, extractBusinessHours = false) {
+async function extractBusinessData(page, businessLink, seenUrls, enableDebug = false, proxyConfiguration = null, extractBusinessHours = false, fastMode = false) {
     try {
         // Get the business URL
         const businessUrl = await businessLink.getAttribute('href');
@@ -446,52 +456,10 @@ async function extractBusinessData(page, businessLink, seenUrls, enableDebug = f
         await businessLink.scrollIntoViewIfNeeded();
         await businessLink.click();
 
-        // Wait for the details panel to actually appear (not just timeout)
-        // The details panel is a 'main' element (not in sidebar) that appears with the business info
-        // We need to wait for it to avoid picking up the "Results" h1 from the sidebar
-        try {
-            // Wait longer with proxies (they're slower)
-            const detailsWait = proxyConfiguration ? 10000 : 5000;
-
-            // Wait for an h1 to appear that's NOT in the results feed
-            // The business name h1 should be in a separate main panel
-            await page.waitForFunction(
-                () => {
-                    // Find all main elements
-                    const mainElements = Array.from(document.querySelectorAll('main'));
-
-                    // Look for a main element that's not the results feed
-                    for (const main of mainElements) {
-                        const ariaLabel = main.getAttribute('aria-label');
-                        // Skip the "Results for" sidebar
-                        if (ariaLabel && ariaLabel.includes('Results for')) {
-                            continue;
-                        }
-
-                        // Check if this main has an h1 with actual content
-                        const h1 = main.querySelector('h1');
-                        if (h1 && h1.textContent && h1.textContent.trim().length > 0) {
-                            const text = h1.textContent.trim();
-                            // Make sure it's not "Results" or other generic headings
-                            if (text !== 'Results' &&
-                                !text.startsWith('Results for') &&
-                                text.length < 200) {
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                },
-                { timeout: detailsWait }
-            );
-
-            // Additional wait for all content to fully render
-            await page.waitForTimeout(1500);
-        } catch (error) {
-            console.log('  ⚠️  Details panel took longer than expected to load, continuing anyway...');
-            // Fallback to fixed timeout
-            await page.waitForTimeout(proxyConfiguration ? 5000 : 3000);
-        }
+        // Wait for the details panel to load
+        // Use simpler, faster approach: just wait for content to appear
+        const baseWait = fastMode ? 1000 : (proxyConfiguration ? 3000 : 2000);
+        await page.waitForTimeout(baseWait);
 
         // Extract business name with multiple fallback strategies
         let businessName = null;

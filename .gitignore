@@ -46,6 +46,7 @@ claude-discussion.md
 
 # Test files (development only)
 test-*.js
+test-*.json
 
 # Development screenshots
 *.png
