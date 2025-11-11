@@ -94,7 +94,7 @@
     "proxyType": {
       "title": "Proxy Type",
       "type": "string",
-      "description": "Type of proxy to use (GOOGLE_SERP is cost-effective, RESIDENTIAL is more reliable)",
+      "description": "Type of proxy to use. GOOGLE_SERP is HIGHLY RECOMMENDED - optimized for Google Maps, cost-effective, and reliable. RESIDENTIAL proxies may return wrong location results even with US searches.",
       "editor": "select",
       "enum": ["GOOGLE_SERP", "RESIDENTIAL"],
       "default": "GOOGLE_SERP"
