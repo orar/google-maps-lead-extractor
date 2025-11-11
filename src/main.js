@@ -66,12 +66,18 @@ try {
     const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
 
     // Configure proxy if enabled
-    const proxyConfiguration = useProxy
-        ? await Actor.createProxyConfiguration({
-              groups: [proxyType],
-              countryCode: 'US',  // Force US proxies to get correct location results
-          })
-        : undefined;
+    let proxyConfiguration = undefined;
+    if (useProxy) {
+        const proxyOptions = { groups: [proxyType] };
+
+        // Only add countryCode for RESIDENTIAL proxies
+        // GOOGLE_SERP proxies don't support country selection
+        if (proxyType === 'RESIDENTIAL') {
+            proxyOptions.countryCode = 'US';
+        }
+
+        proxyConfiguration = await Actor.createProxyConfiguration(proxyOptions);
+    }
 
     // Run the scraper
     const businesses = await scrapeGoogleMaps({
