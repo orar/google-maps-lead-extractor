@@ -26,7 +26,7 @@ try {
         findEmails = false,
         extractBusinessHours = false,
         useProxy = true,
-        proxyType = 'GOOGLE_SERP',
+        proxyType = 'DATACENTER',
         exportToCsv = false,
     } = input;
 

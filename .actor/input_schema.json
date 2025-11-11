@@ -94,10 +94,10 @@
     "proxyType": {
       "title": "Proxy Type",
       "type": "string",
-      "description": "Type of proxy to use. GOOGLE_SERP is HIGHLY RECOMMENDED - optimized for Google Maps, cost-effective, and reliable. RESIDENTIAL proxies may return wrong location results even with US searches.",
+      "description": "DATACENTER (default): Fast, cheap, works for most cases. RESIDENTIAL: More expensive but better for avoiding blocks. Note: RESIDENTIAL may have geo-location issues even with US searches.",
       "editor": "select",
-      "enum": ["GOOGLE_SERP", "RESIDENTIAL"],
-      "default": "GOOGLE_SERP"
+      "enum": ["DATACENTER", "RESIDENTIAL"],
+      "default": "DATACENTER"
     },
     "exportToCsv": {
       "title": "Export to CSV",
